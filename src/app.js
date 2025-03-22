@@ -70,6 +70,51 @@ app.get("/feed",async (req,res)=>{
     }
 })
 
+//find by id
+app.get("/id",async (req,res)=>{
+    try{
+        const user=await UserModel.findById({_id:"67de3a3745f827248439beb3"});
+        if(user){
+            res.json({
+                user
+            })
+        }else{
+            res.send("user not found with this id")
+        }
+    }catch(err){
+        res.status(404).send("something went wrong")
+    }
+})
+
+//update and delete API
+app.delete("/user",async (req,res)=>{
+    const userId=await req.body.userId;
+    try{
+        const response=await UserModel.findByIdAndDelete(userId);
+        console.log(response);
+        if(response){
+            res.status(201).send("find and user deleted")
+        }
+    }catch(err){
+        res.send("something went wrong!")
+    }
+})
+app.patch("/user",async (req,res)=>{
+    const userId=await req.body.userId;
+    const data=await req.body;
+    try{
+        const response=await UserModel.findByIdAndUpdate({_id:userId},data);
+                                        //userID and data
+        if(response){
+            res.status(200).send("user Updated sucessfully");
+        }else{
+            res.send("err in deleting user")
+        }
+
+    }catch(err){
+        res.send("something went wrong")
+    }
+})
 
 //database connection
 connectDB().then(()=>{

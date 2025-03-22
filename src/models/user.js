@@ -20,7 +20,8 @@ const userSchema= mongoose.Schema({
     gender:{
         type:String
         //search from internet
-    }
+    },
+
 })
 //create user model
 const UserModel=mongoose.model("User",userSchema);
