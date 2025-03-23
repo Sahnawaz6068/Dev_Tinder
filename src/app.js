@@ -21,7 +21,7 @@ app.post("/signup",async (req,res)=>{
     //     gender:"Male"
     // };
    
-    console.log(req.body);
+console.log(req.body);
 const User=req.body; //user from Post request store in User then with the help of userModel created new user
 const user=new UserModel(User); //create new user with the help of UserModel(input); 
 // creating new instence of userModel
@@ -32,10 +32,8 @@ try{
         msg:"new user created"
     })
 }catch(err){
-    console.log("Error in saving error")
-    res.json({
-        msg:"Error in creating new user"
-    })
+    console.log("Error in saving");
+    res.status(401).send("error in saving user"+ err.message);
 }
 //-------------------------------------------------------------------------------------
  });
@@ -53,7 +51,7 @@ app.get("/user",async (req,res)=>{
         }
     }catch(err){
         console.log("something went wrong while serarching user by emial");
-        res.status(401).send("something went wrong");
+        res.status(401).send("something went wrong",err);
     }
 })
 
@@ -102,8 +100,24 @@ app.delete("/user",async (req,res)=>{
 app.patch("/user",async (req,res)=>{
     const userId=await req.body.userId;
     const data=await req.body;
+
+   
     try{
-        const response=await UserModel.findByIdAndUpdate({_id:userId},data);
+        const AllowedUpdates=["userId","ImageUrl","skill","about","gender","age","password"];
+        const isUpdateAllows=Object.keys(data).every((k)=>
+        AllowedUpdates.includes(k)
+        );
+        if(data?.skill.length>10){
+            throw new Error("Skill is not more than 10");
+        }
+        if(!isUpdateAllows){
+            throw new Error("Update not allowed")
+        }
+
+        const response=await UserModel.findByIdAndUpdate({_id:userId},data,{
+            returnDocument:"after",
+            runValidators:true
+        });
                                         //userID and data
         if(response){
             res.status(200).send("user Updated sucessfully");
@@ -112,7 +126,7 @@ app.patch("/user",async (req,res)=>{
         }
 
     }catch(err){
-        res.send("something went wrong")
+        res.send("something went wrong:::"+err.message)
     }
 })
 
