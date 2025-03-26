@@ -6,15 +6,21 @@ const { validateSignupData } = require("./utils/validation");
 const validator = require("validator");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const SECRET_KEY="sAHzEESHAN@123"
+const cookieParser = require("cookie-parser");
+const { userAuth } = require("./middlewares/auth");
+const { connectionRouter } = require("./routes/connectionRoute");
+const SECRET_KEY = "sAHzEESHAN@123";
+
+
 
 const app = express();
 app.use(express.json());
+app.use(cookieParser());
 //signup route
 app.post("/signup", async (req, res) => {
   try {
     //user info fetch from body
-    const { firstName, lastName, password, email,role } = await req.body;
+    const { firstName, lastName, password, email, role } = await req.body;
 
     //validate signup data by function define in "./utils/validation.js"
     validateSignupData(req);
@@ -46,7 +52,7 @@ app.post("/signup", async (req, res) => {
 //-------------------------------------------------------------------------------------
 app.post("/login", async (req, res) => {
   try {
-    const { email, password} = await req.body;
+    const { email, password } = await req.body;
     //sanitize the data
     const emailResponse = validator.isEmail(email);
     if (!emailResponse) {
@@ -55,23 +61,38 @@ app.post("/login", async (req, res) => {
     } else {
       //find user with email in database
       const userResponse = await UserModel.findOne({ email: email });
-      if (userResponse) {
-        //means user found
+      const role = userResponse.role; //role feetch from db
+      const userName=userResponse.firstName;
+      const userId=userResponse._id;
+// --xxxx-----xxx----xxx---------xxx----------xxx--------xxx-------xxx--------xxx-----
+      console.log("Hash password:"+userResponse.password);
+      console.log("Role:"+role);
+      console.log("UserName:"+userName);
+      console.log("User ID:"+userId);   
+      const hashPassword = userResponse.password; //fetch hash pass from db
+      if (userResponse) { //-->is line ka matlab yadi user database me hai tab 
         //now check password is same or not
-        console.log(userResponse.password);
-        const role=userResponse.role;//role feetch from db
-        console.log(role);
-        const hashPassword = userResponse.password;//fetch hash pass from db
-        const passwordResponse = await bcrypt.compare(password, hashPassword);//compair
+        const passwordResponse = await bcrypt.compare(password, hashPassword); //compair
         if (passwordResponse) {
-          const token=jwt.sign({
-            role
-          },SECRET_KEY)
-          res.status(200).send("user Login and generated Token:"+ token);
-        }else{
-          res.send("Invalid credentials")
+          //psudo step
+          //1.Create JWT TOKEN
+          const token = jwt.sign(
+            {
+              role,
+              userName,
+              userId
+            },
+            SECRET_KEY
+          );
+          //2.Add token to cookies and send response to token
+          res.cookie("token", token);
+          res
+            .status(200)
+            .send("user Login Sucessfully and generated Token:" + token);
+        } else {
+          res.send("Invalid credentials");
         }
-      }else{
+      } else {
         res.status(404).send("invalid credentials");
       }
     }
@@ -79,9 +100,27 @@ app.post("/login", async (req, res) => {
     res.send(err);
   }
 });
+//upar wale ka kaam hai ki token banana hai with all the checks and security
+//Token banane ke bad use cookies me store kara dena
+//------------------------------------------------------------------------------------------------
+//get Profile
+app.get("/profile", async (req, res) => {
+  try {
+    const cookies = req.cookies;
+    const token = cookies.token;
+    console.log(token);
+    const decodedMsg = jwt.verify(token, SECRET_KEY); //this return a object wo object jo signUp karte time diye the
+    console.log("Decodede obj:"+decodedMsg);
+    console.log(decodedMsg.role);
+    res.send("ye raha tera profile");
+  } catch (err) {
+    res.send("Something wrong happning wow!!!!");
+  }
+});
 //get user by email
 app.get("/user", async (req, res) => {
   try {
+    
     const userEmail = await req.body.email;
     const foundUser = await UserModel.findOne({ email: userEmail });
     if (foundUser.length === 0) {
@@ -175,6 +214,25 @@ app.patch("/user", async (req, res) => {
     res.send("something went wrong:::" + err.message);
   }
 });
+app.get("/test",userAuth,(req,res)=>{
+  // userAuth(req);
+  res.json({
+    msg:"all ok"
+  })
+})
+app.post("/connection-request",userAuth,async (req,res)=>{
+  const userName=req.user.firstName;
+
+  try{
+    res.json({
+      msg:"Connection request sent by:"+userName
+    })
+  }catch(err){
+    res.send("faild connection request")
+  }
+})
+
+app.use("/user",connectionRouter);
 
 //database connection
 connectDB()
